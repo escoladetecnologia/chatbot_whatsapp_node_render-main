@@ -1,3 +1,6 @@
+// Função para criar um delay entre as ações
+const delay = ms => new Promise(res => setTimeout(res, ms));
+
 const qrcode = require('qrcode'); // Biblioteca para gerar QR Code
 const qrcodeTerminal = require('qrcode-terminal'); // Biblioteca para exibir QR Code no terminal
 const { Client, LocalAuth } = require('whatsapp-web.js'); // Inclui autenticação local
@@ -125,5 +128,4 @@ app.listen(port, () => {
     console.log(`Servidor HTTP escutando na porta ${port}`);
 });
 
-// Função para criar um delay entre as ações
-const delay = ms => new Promise(res => setTimeout(res, ms));
+
