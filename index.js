@@ -18,6 +18,7 @@ const clientMongoDB = new MongoClient(uri, {
 
 // Inicializando o cliente do WhatsApp
 const client = new Client();
+let qrCodeUrl; // Variável para armazenar a URL do QR Code
 
 // Função para conectar ao MongoDB e retornar a coleção
 async function connectToMongoDB() {
@@ -36,22 +37,27 @@ client.on('qr', async qr => {
     qrcodeTerminal.generate(qr, { small: true });
 
     // Gera o QR Code em formato de URL (base64) para exibição em uma página web
-    const qrCodeUrl = await qrcode.toDataURL(qr);
+    qrCodeUrl = await qrcode.toDataURL(qr);
 
     const collection = await connectToMongoDB(); // Conecta ao MongoDB e obtém a coleção
 
     // Salva o QR Code no banco de dados
     await collection.updateOne({}, { $set: { qrCode: qrCodeUrl } }, { upsert: true });
+});
 
-    // Define um endpoint para exibir o QR Code na interface web
-    app.get('/qrcode', (req, res) => {
+// Define um endpoint para exibir o QR Code na interface web
+const app = express();
+app.get('/qrcode', (req, res) => {
+    if (qrCodeUrl) {
         res.send(`
             <div style="text-align: center;">
                 <h1>Escaneie o QR Code com o WhatsApp</h1>
                 <img src="${qrCodeUrl}" alt="QR Code para WhatsApp"/>
             </div>
         `);
-    });
+    } else {
+        res.send('QR Code ainda não gerado.');
+    }
 });
 
 // Evento quando o cliente está pronto
@@ -73,7 +79,7 @@ client.on('message', async msg => {
         await chat.sendStateTyping();
         await delay(3000);
         const contact = await msg.getContact();
-        const name = contact.pushname;
+        const name = contact.pushname || 'Cliente'; // Adiciona um nome padrão caso não tenha
         await client.sendMessage(msg.from, `Olá, ${name.split(" ")[0]}! Sou o assistente virtual da empresa tal. Como posso ajudá-lo hoje? Por favor, digite uma das opções abaixo:\n\n1 - Mais Informação - Curso Cypecad\n2 - Valores Curso\n3 - Outras perguntas`);
     }
 
@@ -103,7 +109,6 @@ client.on('message', async msg => {
 });
 
 // Configurações do servidor Express para servir o QR Code na web
-const app = express();
 const port = process.env.PORT || 4000;
 
 app.get('/', (req, res) => {
