@@ -18,8 +18,7 @@ const clientMongoDB = new MongoClient(uri, {
 
 // Inicializando o cliente do WhatsApp
 const client = new Client();
-const app = express();
-const port = process.env.PORT || 4000;
+let qrCodeUrl; // Variável para armazenar a URL do QR Code
 
 // Função para conectar ao MongoDB e retornar a coleção
 async function connectToMongoDB() {
@@ -32,26 +31,19 @@ async function connectToMongoDB() {
     }
 }
 
-// Rota para exibir o QR Code
-app.get('/qrcode', async (req, res) => {
-    const collection = await connectToMongoDB(); // Conecta ao MongoDB e obtém a coleção
-    const qrCodeData = await collection.findOne({}); // Obtém o QR Code mais recente
-
-    if (qrCodeData && qrCodeData.qrCode) {
+// Define um endpoint para exibir o QR Code na interface web
+const app = express();
+app.get('/qrcode', (req, res) => {
+    if (qrCodeUrl) {
         res.send(`
             <div style="text-align: center;">
                 <h1>Escaneie o QR Code com o WhatsApp</h1>
-                <img src="${qrCodeData.qrCode}" alt="QR Code para WhatsApp"/>
+                <img src="${qrCodeUrl}" alt="QR Code para WhatsApp"/>
             </div>
         `);
     } else {
-        res.send("QR Code não encontrado. Tente novamente.");
+        res.send('QR Code ainda não gerado.');
     }
-});
-
-// Evento quando o cliente está pronto
-client.on('ready', () => {
-    console.log('Tudo certo! WhatsApp conectado.');
 });
 
 // Função para exibir QR Code no terminal e no link da aplicação
@@ -60,11 +52,17 @@ client.on('qr', async qr => {
     qrcodeTerminal.generate(qr, { small: true });
 
     // Gera o QR Code em formato de URL (base64) para exibição em uma página web
-    const qrCodeUrl = await qrcode.toDataURL(qr);
+    qrCodeUrl = await qrcode.toDataURL(qr);
+
     const collection = await connectToMongoDB(); // Conecta ao MongoDB e obtém a coleção
 
     // Salva o QR Code no banco de dados
     await collection.updateOne({}, { $set: { qrCode: qrCodeUrl } }, { upsert: true });
+});
+
+// Evento quando o cliente está pronto
+client.on('ready', () => {
+    console.log('Tudo certo! WhatsApp conectado.');
 });
 
 // Inicializa o cliente
@@ -81,7 +79,7 @@ client.on('message', async msg => {
         await chat.sendStateTyping();
         await delay(3000);
         const contact = await msg.getContact();
-        const name = contact.pushname;
+        const name = contact.pushname || 'Cliente'; // Adiciona um nome padrão caso não tenha
         await client.sendMessage(msg.from, `Olá, ${name.split(" ")[0]}! Sou o assistente virtual da empresa tal. Como posso ajudá-lo hoje? Por favor, digite uma das opções abaixo:\n\n1 - Mais Informação - Curso Cypecad\n2 - Valores Curso\n3 - Outras perguntas`);
     }
 
@@ -110,9 +108,11 @@ client.on('message', async msg => {
     }
 });
 
-// Configurações do servidor Express
+// Configurações do servidor Express para servir o QR Code na web
+const port = process.env.PORT || 4000;
+
 app.get('/', (req, res) => {
-    res.send('Chatbot ativo!');
+    res.send('Chatbot ativo! Acesse /qrcode para visualizar o QR Code.');
 });
 
 app.listen(port, () => {
