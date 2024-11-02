@@ -17,8 +17,10 @@ const clientMongoDB = new MongoClient(uri, {
 });
 
 // Inicializando o cliente do WhatsApp
-const client = new Client();p
 const client = new Client();
+
+// O restante do seu código continua...
+
 
 // Função para conectar ao MongoDB e retornar a coleção
 async function connectToMongoDB() {
