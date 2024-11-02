@@ -26,7 +26,7 @@ async function connectToMongoDB() {
         console.log("Conectado ao MongoDB!");
         return clientMongoDB.db("admin").collection("qrcodes"); // Usando o nome do banco "admin"
     } catch (error) {
-        console.error("Erro ao conectar ao MongoDB:", error);
+        console.error("Erro ao conectar ao MongoDB", error);
     }
 }
 
@@ -110,9 +110,6 @@ app.get('/', (req, res) => {
     res.send('Chatbot ativo!');
 });
 
-// Conecta ao MongoDB e inicia o servidor
-connectToMongoDB().then(() => {
-    app.listen(port, () => {
-        console.log(`Servidor HTTP escutando na porta ${port}`);
-    });
-}).catch(console.error);
+app.listen(port, () => {
+    console.log(`Servidor HTTP escutando na porta ${port}`);
+});
