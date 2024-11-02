@@ -1,15 +1,11 @@
-// Importando bibliotecas
-const qrcode = require('qrcode'); // Biblioteca para gerar QR Code
-const qrcodeTerminal = require('qrcode-terminal'); // Biblioteca para exibir QR Code no terminal
-const { Client } = require('whatsapp-web.js');
-const express = require('express');
-const { MongoClient, ServerApiVersion } = require('mongodb');
-
-// Configurando a URI do MongoDB usando uma variável de ambiente
+import qrcode from 'qrcode'; // Biblioteca para gerar QR Code
+import qrcodeTerminal from 'qrcode-terminal'; // Biblioteca para exibir QR Code no terminal
+import { Client } from 'whatsapp-web.js';
+import express from 'express';
+import { MongoClient, ServerApiVersion } from 'mongodb';
 
 // Configurando a URI do MongoDB usando uma variável de ambiente
 const uri = process.env.MONGODB_URI; // Agora usando a variável de ambiente
-
 
 // Criação do cliente MongoDB com opções da API
 const clientMongoDB = new MongoClient(uri, {
@@ -21,6 +17,7 @@ const clientMongoDB = new MongoClient(uri, {
 });
 
 // Inicializando o cliente do WhatsApp
+const client = new Client();p
 const client = new Client();
 
 // Função para conectar ao MongoDB e retornar a coleção
