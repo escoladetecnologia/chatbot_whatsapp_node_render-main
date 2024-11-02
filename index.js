@@ -1,11 +1,11 @@
 const qrcode = require('qrcode'); // Biblioteca para gerar QR Code
 const qrcodeTerminal = require('qrcode-terminal'); // Biblioteca para exibir QR Code no terminal
-const { Client } = require('whatsapp-web.js');
+const { Client, LocalAuth } = require('whatsapp-web.js'); // Inclui autenticação local
 const express = require('express');
 const { MongoClient, ServerApiVersion } = require('mongodb');
 
 // Configurando a URI do MongoDB usando uma variável de ambiente
-const uri = process.env.MONGODB_URI; // Agora usando a variável de ambiente
+const uri = process.env.MONGODB_URI;
 
 // Criação do cliente MongoDB com opções da API
 const clientMongoDB = new MongoClient(uri, {
@@ -16,8 +16,10 @@ const clientMongoDB = new MongoClient(uri, {
     }
 });
 
-// Inicializando o cliente do WhatsApp
-const client = new Client();
+// Inicializando o cliente do WhatsApp com autenticação local
+const client = new Client({
+    authStrategy: new LocalAuth() // Armazena a sessão localmente
+});
 let qrCodeUrl; // Variável para armazenar a URL do QR Code
 
 // Função para conectar ao MongoDB e retornar a coleção
@@ -25,7 +27,7 @@ async function connectToMongoDB() {
     try {
         await clientMongoDB.connect();
         console.log("Conectado ao MongoDB!");
-        return clientMongoDB.db("admin").collection("qrcodes"); // Usando o nome do banco "admin"
+        return clientMongoDB.db("admin").collection("qrcodes");
     } catch (error) {
         console.error("Erro ao conectar ao MongoDB", error);
     }
@@ -46,18 +48,10 @@ app.get('/qrcode', (req, res) => {
     }
 });
 
-// Função para exibir QR Code no terminal e no link da aplicação
+// Evento para exibir QR Code no terminal e no link da aplicação
 client.on('qr', async qr => {
-    // Gera o QR Code no console de forma legível para terminais pequenos
     qrcodeTerminal.generate(qr, { small: true });
-
-    // Gera o QR Code em formato de URL (base64) para exibição em uma página web
     qrCodeUrl = await qrcode.toDataURL(qr);
-
-    const collection = await connectToMongoDB(); // Conecta ao MongoDB e obtém a coleção
-
-    // Salva o QR Code no banco de dados
-    await collection.updateOne({}, { $set: { qrCode: qrCodeUrl } }, { upsert: true });
 });
 
 // Evento quando o cliente está pronto
@@ -68,9 +62,6 @@ client.on('ready', () => {
 // Inicializa o cliente
 client.initialize();
 
-// Função para criar um delay entre as ações
-const delay = ms => new Promise(res => setTimeout(res, ms));
-
 // Configurações de mensagens automáticas
 client.on('message', async msg => {
     if (msg.body.match(/(menu|Menu|dia|tarde|noite|oi|Oi|Olá|olá|ola|Ola|Olá ! Gostaria de tirar algumas dúvidas sobre o produto Curso Cypecad na Prática - Cálculo Estrutural - 1990516|cypecad|Cypecad|curso cypecad|Curso Cypecad|informacoes curso cypecad|informações curso cypecad)/i) && msg.from.endsWith('@c.us')) {
@@ -79,7 +70,7 @@ client.on('message', async msg => {
         await chat.sendStateTyping();
         await delay(3000);
         const contact = await msg.getContact();
-        const name = contact.pushname || 'Cliente'; // Adiciona um nome padrão caso não tenha
+        const name = contact.pushname || 'Cliente';
         await client.sendMessage(msg.from, `Olá, ${name.split(" ")[0]}! Sou o assistente virtual da empresa tal. Como posso ajudá-lo hoje? Por favor, digite uma das opções abaixo:\n\n1 - Mais Informação - Curso Cypecad\n2 - Valores Curso\n3 - Outras perguntas`);
     }
 
@@ -118,3 +109,6 @@ app.get('/', (req, res) => {
 app.listen(port, () => {
     console.log(`Servidor HTTP escutando na porta ${port}`);
 });
+
+// Função para criar um delay entre as ações
+const delay = ms => new Promise(res => setTimeout(res, ms));
