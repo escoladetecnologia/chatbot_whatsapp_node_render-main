@@ -3,5 +3,5 @@ services:
     name: chatbot
     env: node
     buildCommand: npm install
-    startCommand: node chatbot.js
+    startCommand: node index.js
 
