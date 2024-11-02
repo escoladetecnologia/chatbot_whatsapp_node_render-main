@@ -1,10 +1,10 @@
 // Importando bibliotecas
-const qrcode = require('qrcode');
-const qrcodeTerminal = require('qrcode-terminal');
-const { Client } = require('whatsapp-web.js');
-const express = require('express');
-const app = express();
+import qrcode from 'qrcode';
+import qrcodeTerminal from 'qrcode-terminal';
+import { Client } from 'whatsapp-web.js';
+import express from 'express';
 
+const app = express();
 let latestQrCodeUrl = ''; // Variável para armazenar o QR code atualizado
 
 // Inicializando o cliente do WhatsApp com configurações para Puppeteer
@@ -16,10 +16,7 @@ const client = new Client({
 
 // Opção de exibir QR Code no terminal e no navegador
 client.on('qr', async qr => {
-    // Exibindo QR Code no terminal com a opção "small"
     qrcodeTerminal.generate(qr, { small: true });
-    
-    // Atualiza o QR code a cada vez que há um novo evento `qr`
     latestQrCodeUrl = await qrcode.toDataURL(qr, {
         errorCorrectionLevel: 'H',
         width: 300,
@@ -42,7 +39,7 @@ app.get('/qrcode', (req, res) => {
     }
 });
 
-// Iniciar o servidor para exibir QR Code no navegador na porta especificada pela Render
+// Iniciar o servidor na porta especificada pela Render
 const port = process.env.PORT || 3001;
 app.listen(port, () => {
     console.log(`Servidor rodando em http://localhost:${port}/qrcode para exibir QR Code`);
@@ -59,53 +56,50 @@ client.initialize();
 // Função para criar um delay entre as ações
 const delay = ms => new Promise(res => setTimeout(res, ms));
 
-// Configurações de mensagens automáticas
-client.on('message', async msg => {
-    if (msg.body.match(/(menu|Menu|dia|tarde|noite|oi|Oi|Olá|olá|ola|Ola|quero|Quero|mais|informacao|informação|informações|saber|curso|matricula|Matricula|matrícula|Matrícula|comprar|comprar|duvida|dúvida|Duvida|Dúvida|Ajuda|ajuda|falar|Falar)/i) && msg.from.endsWith('@c.us')) {
+// Enviar resposta automática
+const sendAutoReply = async (msg, response) => {
+    try {
         const chat = await msg.getChat();
         await delay(3000);
         await chat.sendStateTyping();
         await delay(3000);
+        await client.sendMessage(msg.from, response);
+    } catch (error) {
+        console.error("Erro ao enviar mensagem:", error);
+    }
+};
+
+// Configurações de mensagens automáticas
+client.on('message', async msg => {
+    if (msg.body.match(/(menu|oi|Olá|olá|quero|mais|informação|curso)/i) && msg.from.endsWith('@c.us')) {
         const contact = await msg.getContact();
-        const name = contact.pushname;
-        await client.sendMessage(msg.from, `Olá, ${name.split(" ")[0]}! Sou o assistente virtual da empresa Escola de Tecnologia. Como posso ajudá-lo hoje? Por favor, digite uma das opções abaixo:\n\n1 - Mais Informação - Curso Cypecad\n2 - Curso Cype 3D Metálicas\n3 - Outras perguntas`);
+        const name = contact.pushname || "usuário";
+        await sendAutoReply(msg, `Olá, ${name.split(" ")[0]}! Sou o assistente virtual da empresa Escola de Tecnologia. Como posso ajudá-lo hoje? Por favor, digite uma das opções abaixo:\n\n1 - Mais Informação - Curso Cypecad\n2 - Curso Cype 3D Metálicas\n3 - Outras perguntas`);
     }
 
     if (msg.body === '1' && msg.from.endsWith('@c.us')) {
-        const chat = await msg.getChat();
-        await delay(3000);
-        await chat.sendStateTyping();
-        await delay(3000);
-        await client.sendMessage(msg.from, `Aqui estão as informações sobre o Curso Cypecad:\n\nEnfrentar qualquer cálculo estrutural com Ajuda de Um Engenheiro Calculista Especialista e faturar de R$ 15.000 a R$ 50.000 ou mais com projetos de edifícios, sobrados, casas de acordo com a NBR6118 através do nosso método único VQS (Velocidade, Qualidade, Segurança), indo além de ser Piloto de Software.\n\nCalcular, Detalhar, Projetar e Analisar um projeto completo de concreto armado.\n\nDar um UP na sua Carreira, e obter os melhores empregos, salários e negócios.\n\nFazer Detalhamento de Vigas, Pilares, Lajes, Fundações.\n\nFazer cálculo de Fundações conforme NBR6122.\n\nFazer os Carregamentos conforme normas NBR 6120, barras NBR 7480, ventos NBR 6123, ações e combinações.`);
+        await sendAutoReply(msg, `Aqui estão as informações sobre o Curso Cypecad:\n\nEnfrentar qualquer cálculo estrutural com ajuda de um engenheiro calculista especialista e faturar de R$ 15.000 a R$ 50.000 ou mais com projetos de edifícios, sobrados, casas de acordo com a NBR6118 através do nosso método único VQS (Velocidade, Qualidade, Segurança), indo além de ser piloto de software.\n\nCalcular, detalhar, projetar e analisar um projeto completo de concreto armado.\n\nDar um UP na sua carreira e obter os melhores empregos, salários e negócios.\n\nFazer detalhamento de vigas, pilares, lajes e fundações.\n\nFazer cálculo de fundações conforme NBR6122.\n\nFazer os carregamentos conforme normas NBR 6120, barras NBR 7480, ventos NBR 6123, ações e combinações.`);
         await delay(1000);
         await client.sendMessage(msg.from, 'Curso Cypecad na Prática - Cálculo Estrutural: 12x R$ 34,90 ou R$ 349,00 à vista. Assim que o sistema confirmar o pagamento, você receberá os dados de acesso ao curso');
         await delay(1000);
         await client.sendMessage(msg.from, 'Você pode fazer a compra do curso através deste link: https://sun.eduzz.com/wcs7e6ps');
         await delay(1000);
-        await client.sendMessage(msg.from, 'Te Vejo lá na Plataforma do Curso Cypecad 😊'); 
+        await client.sendMessage(msg.from, 'Te vejo lá na Plataforma do Curso Cypecad 😊'); 
     }
 
     if (msg.body === '2' && msg.from.endsWith('@c.us')) {
-        const chat = await msg.getChat();
-        await delay(3000);
-        await chat.sendStateTyping();
-        await delay(3000);
-        await client.sendMessage(msg.from, `Aqui estão as informações sobre o Curso Cype 3D Metálicas:\n\nDomine o Cype 3D Estruturas Metálicas em VideoAulas Passo a Passo e Seja um Especialista em Cálculo Estrutural de Galpões Metálicos!\n\n Magno Moreira, Engenheiro de Elite, Revela o Método VQS para fazer Projetos de Estruturas Metálicas com mais Velocidade, Qualidade e Segurança.\n\nO Curso Cype 3D Estruturas Metálicas ensina na prática um projeto real de Galpão Metálico de 640m2 e Mezanino como calcular e dimensionar o projetos de estruturas metálicas de acordo com as normas brasileiras ((NBR 6120), barras (NBR 7480), ventos (NBR 6123), ações e combinações)`);
+        await sendAutoReply(msg, `Aqui estão as informações sobre o Curso Cype 3D Metálicas:\n\nDomine o Cype 3D Estruturas Metálicas em videoaulas passo a passo e seja um especialista em cálculo estrutural de galpões metálicos!\n\nMagno Moreira, engenheiro de elite, revela o método VQS para fazer projetos de estruturas metálicas com mais velocidade, qualidade e segurança.\n\nO Curso Cype 3D Estruturas Metálicas ensina na prática um projeto real de galpão metálico de 640m2 e mezanino como calcular e dimensionar projetos de estruturas metálicas de acordo com as normas brasileiras (NBR 6120, NBR 7480, NBR 6123).`);
         await delay(1000);
         await client.sendMessage(msg.from, 'Curso Cype 3D Metálicas na Prática - Cálculo Estrutural de Galpões Metálicos: 12x R$ 34,90 ou R$ 349,00 à vista. Assim que o sistema confirmar o pagamento, você receberá os dados de acesso ao curso');
         await delay(1000);
         await client.sendMessage(msg.from, 'Você pode fazer a compra do curso através deste link: https://sun.eduzz.com/7czxg5un');
         await delay(1000);
-        await client.sendMessage(msg.from, 'Te Vejo lá na Plataforma do Curso Cype 3D Metálicas 😊'); 
+        await client.sendMessage(msg.from, 'Te vejo lá na Plataforma do Curso Cype 3D Metálicas 😊'); 
     }
 
     if (msg.body === '3' && msg.from.endsWith('@c.us')) {
-        const chat = await msg.getChat();
+        await sendAutoReply(msg, 'Se você tiver outras dúvidas ou precisar de mais informações, por favor, digite sua pergunta abaixo e aguarde a resposta.');
         await delay(3000);
-        await chat.sendStateTyping();
-        await delay(3000);
-        await client.sendMessage(msg.from, 'Se você tiver outras dúvidas ou precisar de mais informações, por favor, digite sua pergunta abaixo e aguarde a resposta');
-        await delay(3000);
-        await client.sendMessage(msg.from, 'Aguarde que um de nossos Atendentes irá responder a sua dúvida, caso queira conhecer todos os nossos cursos acesse o site: https://www.escoladetecnologia.com');
+        await client.sendMessage(msg.from, 'Aguarde que um de nossos atendentes irá responder a sua dúvida. Caso queira conhecer todos os nossos cursos, acesse o site: https://www.escoladetecnologia.com');
     }
 });
