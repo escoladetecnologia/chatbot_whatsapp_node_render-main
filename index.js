@@ -1,19 +1,18 @@
 // Importando bibliotecas
-import express from 'express';
-import qrcode from 'qrcode';
-import qrcodeTerminal from 'qrcode-terminal';
-import { Client } from 'whatsapp-web.js';
-import { MongoClient, ServerApiVersion } from 'mongodb';
+const qrcode = require('qrcode'); // Biblioteca para gerar QR Code
+const qrcodeTerminal = require('qrcode-terminal'); // Biblioteca para exibir QR Code no terminal
+const { Client } = require('whatsapp-web.js');
+const express = require('express');
+const { MongoClient, ServerApiVersion } = require('mongodb');
 
-// Configurações do MongoDB
-const uri = process.env.MONGODB_URI;
+// Configurando a URI do MongoDB usando uma variável de ambiente
 
-if (!uri) {
-    throw new Error("A variável de ambiente MONGODB_URI não está definida.");
-}
+// Configurando a URI do MongoDB usando uma variável de ambiente
+const uri = process.env.MONGODB_URI; // Agora usando a variável de ambiente
 
-// Cria um cliente do MongoDB
-const clientMongo = new MongoClient(uri, {
+
+// Criação do cliente MongoDB com opções da API
+const clientMongoDB = new MongoClient(uri, {
     serverApi: {
         version: ServerApiVersion.v1,
         strict: true,
@@ -21,59 +20,42 @@ const clientMongo = new MongoClient(uri, {
     }
 });
 
-// Função para conectar ao MongoDB
+// Inicializando o cliente do WhatsApp
+const client = new Client();
+
+// Função para conectar ao MongoDB e retornar a coleção
 async function connectToMongoDB() {
     try {
-        await clientMongo.connect();
-        await clientMongo.db("admin").command({ ping: 1 });
-        console.log("Conectado ao MongoDB com sucesso!");
+        await clientMongoDB.connect();
+        console.log("Conectado ao MongoDB!");
+        return clientMongoDB.db("admin").collection("qrcodes"); // Usando o nome do banco "admin"
     } catch (error) {
-        console.error("Erro ao conectar ao MongoDB:", error);
+        console.error("Erro ao conectar ao MongoDB", error);
     }
 }
 
-// Inicializando o cliente do WhatsApp com configurações para WhatsApp Web
-const client = new Client({
-    puppeteer: {
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'] // Argumentos para contornar restrições
-    }
-});
-
-let latestQrCodeUrl = ''; // Variável para armazenar o QR code atualizado
-
-// Opção de exibir QR Code no terminal e no navegador
+// Função para exibir QR Code no terminal e no link da aplicação
 client.on('qr', async qr => {
-    // Exibindo QR Code no terminal com a opção "small"
+    // Gera o QR Code no console de forma legível para terminais pequenos
     qrcodeTerminal.generate(qr, { small: true });
-    
-    // Atualiza o QR code a cada vez que há um novo evento `qr`
-    latestQrCodeUrl = await qrcode.toDataURL(qr, {
-        errorCorrectionLevel: 'H',
-        width: 300,
-        margin: 2
-    });
-    console.log("QR Code atualizado e disponível em: https://chatbot-whatsapp-node-render.onrender.com/qrcode");
-});
 
-// Rota para exibir o QR Code atualizado no navegador
-const app = express();
-app.get('/qrcode', (req, res) => {
-    if (latestQrCodeUrl) {
+    // Gera o QR Code em formato de URL (base64) para exibição em uma página web
+    const qrCodeUrl = await qrcode.toDataURL(qr);
+
+    const collection = await connectToMongoDB(); // Conecta ao MongoDB e obtém a coleção
+
+    // Salva o QR Code no banco de dados
+    await collection.updateOne({}, { $set: { qrCode: qrCodeUrl } }, { upsert: true });
+
+    // Define um endpoint para exibir o QR Code na interface web
+    app.get('/qrcode', (req, res) => {
         res.send(`
             <div style="text-align: center;">
-                <h1>Escaneie o QR Code para conectar o WhatsApp</h1>
-                <img src="${latestQrCodeUrl}" alt="QR Code do WhatsApp" />
+                <h1>Escaneie o QR Code com o WhatsApp</h1>
+                <img src="${qrCodeUrl}" alt="QR Code para WhatsApp"/>
             </div>
         `);
-    } else {
-        res.send('<h1>QR Code ainda não está disponível, tente novamente em alguns segundos.</h1>');
-    }
-});
-
-// Iniciar o servidor para exibir QR Code no navegador na porta especificada pela Render
-const port = process.env.PORT || 3001;
-app.listen(port, () => {
-    console.log(`Servidor rodando em http://localhost:${port}/qrcode para exibir QR Code`);
+    });
 });
 
 // Evento quando o cliente está pronto
@@ -89,14 +71,14 @@ const delay = ms => new Promise(res => setTimeout(res, ms));
 
 // Configurações de mensagens automáticas
 client.on('message', async msg => {
-    if (msg.body.match(/(menu|Menu|dia|tarde|noite|oi|Oi|Olá|olá|ola|Ola|quero|Quero|mais|informacao|informação|informações|saber|curso|matricula|Matricula|matrícula|Matrícula|comprar|comprar|duvida|dúvida|Duvida|Dúvida|Ajuda|ajuda|falar|Falar)/i) && msg.from.endsWith('@c.us')) {
+    if (msg.body.match(/(menu|Menu|dia|tarde|noite|oi|Oi|Olá|olá|ola|Ola|Olá ! Gostaria de tirar algumas dúvidas sobre o produto Curso Cypecad na Prática - Cálculo Estrutural - 1990516|cypecad|Cypecad|curso cypecad|Curso Cypecad|informacoes curso cypecad|informações curso cypecad)/i) && msg.from.endsWith('@c.us')) {
         const chat = await msg.getChat();
         await delay(3000);
         await chat.sendStateTyping();
         await delay(3000);
         const contact = await msg.getContact();
         const name = contact.pushname;
-        await client.sendMessage(msg.from, `Olá, ${name.split(" ")[0]}! Sou o assistente virtual da empresa Escola de Tecnologia. Como posso ajudá-lo hoje? Por favor, digite uma das opções abaixo:\n\n1 - Mais Informação - Curso Cypecad\n2 - Curso Cype 3D Metálicas\n3 - Outras perguntas`);
+        await client.sendMessage(msg.from, `Olá, ${name.split(" ")[0]}! Sou o assistente virtual da empresa tal. Como posso ajudá-lo hoje? Por favor, digite uma das opções abaixo:\n\n1 - Mais Informação - Curso Cypecad\n2 - Valores Curso\n3 - Outras perguntas`);
     }
 
     if (msg.body === '1' && msg.from.endsWith('@c.us')) {
@@ -104,13 +86,7 @@ client.on('message', async msg => {
         await delay(3000);
         await chat.sendStateTyping();
         await delay(3000);
-        await client.sendMessage(msg.from, `Aqui estão as informações sobre o Curso Cypecad:\n\nEnfrentar qualquer cálculo estrutural com Ajuda de Um Engenheiro Calculista Especialista e faturar de R$ 15.000 a R$ 50.000 ou mais com projetos de edifícios, sobrados, casas de acordo com a NBR6118 através do nosso método único VQS (Velocidade, Qualidade, Segurança), indo além de ser Piloto de Software.\n\nCalcular, Detalhar, Projetar e Analisar um projeto completo de concreto armado.\n\nDar um UP na sua Carreira, e obter os melhores empregos, salários e negócios.\n\nFazer Detalhamento de Vigas, Pilares, Lajes, Fundações.\n\nFazer cálculo de Fundações conforme NBR6122.\n\nFazer os Carregamentos conforme normas NBR 6120, barras NBR 7480, ventos NBR 6123, ações e combinações.`);
-        await delay(1000);
-        await client.sendMessage(msg.from, 'Curso Cypecad na Prática - Cálculo Estrutural: 12x R$ 34,90 ou R$ 349,00 à vista. Assim que o sistema confirmar o pagamento, você receberá os dados de acesso ao curso');
-        await delay(1000);
-        await client.sendMessage(msg.from, 'Você pode fazer a compra do curso através deste link: https://sun.eduzz.com/wcs7e6ps');
-        await delay(1000);
-        await client.sendMessage(msg.from, 'Te Vejo lá na Plataforma do Curso Cypecad 😊'); 
+        await client.sendMessage(msg.from, 'Aqui está um resumo objetivo do Curso Cypecad Online de Cálculo Estrutural...');
     }
 
     if (msg.body === '2' && msg.from.endsWith('@c.us')) {
@@ -118,13 +94,7 @@ client.on('message', async msg => {
         await delay(3000);
         await chat.sendStateTyping();
         await delay(3000);
-        await client.sendMessage(msg.from, `Aqui estão as informações sobre o Curso Cype 3D Metálicas:\n\nDomine o Cype 3D Estruturas Metálicas em VideoAulas Passo a Passo e Seja um Especialista em Cálculo Estrutural de Galpões Metálicos!\n\n Magno Moreira, Engenheiro de Elite, Revela o Método VQS para fazer Projetos de Estruturas Metálicas com mais Velocidade, Qualidade e Segurança.\n\nO Curso Cype 3D Estruturas Metálicas ensina na prática um projeto real de Galpão Metálico de 640m2 e Mezanino como calcular e dimensionar o projetos de estruturas metálicas de acordo com as normas brasileiras ((NBR 6120), barras (NBR 7480), ventos (NBR 6123), ações e combinações`);
-        await delay(1000);
-        await client.sendMessage(msg.from, 'Curso Cype 3D Metálicas na Prática - Cálculo Estrutural de Galpões Metálicos: 12x R$ 34,90 ou R$ 349,00 à vista. Assim que o sistema confirmar o pagamento, você receberá os dados de acesso ao curso');
-        await delay(1000);
-        await client.sendMessage(msg.from, 'Você pode fazer a compra do curso através deste link: https://sun.eduzz.com/7czxg5un');
-        await delay(1000);
-        await client.sendMessage(msg.from, 'Te Vejo lá na Plataforma do Curso Cype 3D Metálicas 😊'); 
+        await client.sendMessage(msg.from, 'Curso Cypecad na Prática - Cálculo Estrutural 12x R$ 34,90 ou R$ 349,00 à vista.');
     }
 
     if (msg.body === '3' && msg.from.endsWith('@c.us')) {
@@ -133,10 +103,17 @@ client.on('message', async msg => {
         await chat.sendStateTyping();
         await delay(3000);
         await client.sendMessage(msg.from, 'Se você tiver outras dúvidas ou precisar de mais informações, por favor, digite sua pergunta abaixo e aguarde a resposta');
-        await delay(3000);
-        await client.sendMessage(msg.from, 'Aguarde que um de nossos Atendentes irá responder a sua dúvida, caso queira conhecer todos os nossos cursos acesse o site: https://www.escoladetecnologia.com');
     }
 });
 
-// Conectar ao MongoDB ao iniciar o aplicativo
-connectToMongoDB().catch(console.error);
+// Configurações do servidor Express para servir o QR Code na web
+const app = express();
+const port = process.env.PORT || 4000;
+
+app.get('/', (req, res) => {
+    res.send('Chatbot ativo!');
+});
+
+app.listen(port, () => {
+    console.log(`Servidor HTTP escutando na porta ${port}`);
+});
