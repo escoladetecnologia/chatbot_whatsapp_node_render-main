@@ -13,7 +13,7 @@ let store;
 
 console.log("MongoDB URI:", process.env.MONGODB_URI);
 
-mongoose.connect(uri, { useNewUrlParser: true, useUnifiedTopology: true })
+mongoose.connect(uri)
     .then(() => {
         console.log("Conectado ao MongoDB");
         // Inicializando o MongoStore depois de confirmar a conexão com o MongoDB
