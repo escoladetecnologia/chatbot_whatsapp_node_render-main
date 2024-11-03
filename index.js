@@ -8,10 +8,11 @@ const { MongoStore } = require('wwebjs-mongo');
 const mongoose = require('mongoose');
 
 // Conectando ao MongoDB
-const uri = process.env.MONGODB_URI;
+const uri = process.env.MONGODB_URI; // Certifique-se de definir esta variável de ambiente
 let store;
+let qrCodeUrl; // Variável global para armazenar a URL do QR Code
 
-console.log("MongoDB URI:", process.env.MONGODB_URI);
+console.log("MongoDB URI:", uri);
 
 mongoose.connect(uri)
     .then(() => {
@@ -34,7 +35,7 @@ function initializeWhatsAppClient() {
     // Evento para exibir QR Code no terminal e na aplicação
     client.on('qr', async qr => {
         qrcodeTerminal.generate(qr, { small: true });
-        const qrCodeUrl = await qrcode.toDataURL(qr);
+        qrCodeUrl = await qrcode.toDataURL(qr); // Atribui a URL do QR Code à variável global
         console.log(`QR Code URL: ${qrCodeUrl}`); // Exibe a URL do QR Code no console
     });
 
@@ -85,7 +86,7 @@ function initializeWhatsAppClient() {
             await delay(3000);
             await chat.sendStateTyping();
             await delay(3000);
-            await client.sendMessage(msg.from, `Aqui estão as informações sobre o Curso Cype 3D Metálicas:\n\nDomine o Cype 3D Estruturas Metálicas em VideoAulas Passo a Passo e Seja um Especialista em Cálculo Estrutural de Galpões Metálicos!\n\n Magno Moreira, Engenheiro de Elite, Revela o Método VQS para fazer Projetos de Estruturas Metálicas com mais Velocidade, Qualidade e Segurança.\n\nO Curso Cype 3D Estruturas Metálicas ensina na prática um projeto real de Galpão Metálico de 640m2 e Mezanino como calcular e dimensionar o projetos de estruturas metálicas de acordo com as normas brasileiras ((NBR 6120), barras (NBR 7480), ventos (NBR 6123), ações e combinações)`);
+            await client.sendMessage(msg.from, `Aqui estão as informações sobre o Curso Cype 3D Metálicas:\n\nDomine o Cype 3D Estruturas Metálicas em VideoAulas Passo a Passo e Seja um Especialista em Cálculo Estrutural de Galpões Metálicos!\n\n Magno Moreira, Engenheiro de Elite, Revela o Método VQS para fazer Projetos de Estruturas Metálicas com mais Velocidade, Qualidade e Segurança.\n\nO Curso Cype 3D Estruturas Metálicas ensina na prática um projeto real de Galpão Metálico de 640m2 e Mezanino como calcular e dimensionar o projetos de estruturas metálicas de acordo com as normas brasileiras ((NBR 6120), barras (NBR 7480), ventos (NBR 6123), ações e combinações.`);
             await delay(1000);
             await client.sendMessage(msg.from, 'Curso Cype 3D Metálicas na Prática - Cálculo Estrutural de Galpões Metálicos: 12x R$ 34,90 ou R$ 349,00 à vista. Assim que o sistema confirmar o pagamento, você receberá os dados de acesso ao curso');
             await delay(1000);
@@ -118,5 +119,9 @@ app.listen(PORT, () => {
 
 // Rota para exibir o QR Code
 app.get('/qrcode', async (req, res) => {
-    res.send('<h1>QR Code gerado com sucesso!</h1><img src="' + qrCodeUrl + '" alt="QR Code" />');
+    if (qrCodeUrl) {
+        res.send('<h1>QR Code gerado com sucesso!</h1><img src="' + qrCodeUrl + '" alt="QR Code" />');
+    } else {
+        res.send('<h1>Nenhum QR Code gerado ainda.</h1>');
+    }
 });
