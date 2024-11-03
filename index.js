@@ -42,11 +42,14 @@ function initializeWhatsAppClient() {
     // Evento para confirmar quando o cliente está pronto
     client.on('ready', () => {
         console.log('Tudo certo! WhatsApp conectado.');
+        // A partir deste ponto, você pode iniciar qualquer outra lógica que dependa da conexão
     });
 
     // Evento para salvar a sessão no MongoDB
     client.on('remote_session_saved', () => {
         console.log("Sessão salva no MongoDB.");
+        // Aqui você pode iniciar a lógica que depende da sessão estar salva
+        // Por exemplo, você pode enviar uma mensagem de boas-vindas ou executar outra ação
     });
 
     // Evento que ocorre quando a autenticação falha ou o cliente se desconecta
