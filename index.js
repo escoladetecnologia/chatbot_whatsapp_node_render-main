@@ -1,130 +1,99 @@
-// Importando as bibliotecas necessárias
-const delay = ms => new Promise(res => setTimeout(res, ms));
-const qrcode = require('qrcode');
-const qrcodeTerminal = require('qrcode-terminal');
-const { Client, RemoteAuth } = require('whatsapp-web.js');
 const express = require('express');
-const { MongoStore } = require('wwebjs-mongo');
-const mongoose = require('mongoose');
+const { Client, LocalAuth } = require('whatsapp-web.js');
+const qrcode = require('qrcode-terminal');
+const fs = require('fs');
 
-// Conectando ao MongoDB
-const uri = process.env.MONGODB_URI; // Certifique-se de definir esta variável de ambiente
-let store;
-let qrCodeUrl; // Variável global para armazenar a URL do QR Code
-
-console.log("MongoDB URI:", uri);
-
-mongoose.connect(uri)
-    .then(() => {
-        console.log("Conectado ao MongoDB");
-        // Inicializando o MongoStore depois de confirmar a conexão com o MongoDB
-        store = new MongoStore({ mongoose });
-        initializeWhatsAppClient(); // Função que inicializa o cliente do WhatsApp
-    })
-    .catch(error => console.error("Erro ao conectar ao MongoDB", error));
-
-// Função para inicializar o cliente do WhatsApp
-function initializeWhatsAppClient() {
-    const client = new Client({
-        authStrategy: new RemoteAuth({
-            store: store,
-            backupSyncIntervalMs: 300000 // Sincroniza a cada 5 minutos
-        })
-    });
-
-    // Evento para exibir QR Code no terminal e na aplicação
-    client.on('qr', async qr => {
-        qrcodeTerminal.generate(qr, { small: true });
-        qrCodeUrl = await qrcode.toDataURL(qr); // Atribui a URL do QR Code à variável global
-        console.log(`QR Code URL: ${qrCodeUrl}`); // Exibe a URL do QR Code no console
-    });
-
-    // Evento para confirmar quando o cliente está pronto
-    client.on('ready', () => {
-        console.log('Tudo certo! WhatsApp conectado.');
-        // A partir deste ponto, você pode iniciar qualquer outra lógica que dependa da conexão
-    });
-
-    // Evento para salvar a sessão no MongoDB
-    client.on('remote_session_saved', () => {
-        console.log("Sessão salva no MongoDB.");
-        // Aqui você pode iniciar a lógica que depende da sessão estar salva
-        // Por exemplo, você pode enviar uma mensagem de boas-vindas ou executar outra ação
-    });
-
-    // Evento que ocorre quando a autenticação falha ou o cliente se desconecta
-    client.on('disconnected', async (reason) => {
-        console.log(`Cliente desconectado: ${reason}`);
-        await client.initialize(); // Tenta reconectar
-    });
-
-    // Configurações de mensagens automáticas
-    client.on('message', async msg => {
-        if (msg.body.match(/(menu|Menu|dia|tarde|noite|oi|Oi|Olá|olá|ola|Ola|Olá ! Gostaria de tirar algumas dúvidas sobre o produto Curso Cypecad na Prática - Cálculo Estrutural - 1990516|cypecad|Cypecad|curso cypecad|Curso Cypecad|informacoes curso cypecad|informações curso cypecad)/i) && msg.from.endsWith('@c.us')) {
-            const chat = await msg.getChat();
-            await delay(3000);
-            await chat.sendStateTyping();
-            await delay(3000);
-            const contact = await msg.getContact();
-            const name = contact.pushname || 'Cliente';
-            await client.sendMessage(msg.from, `Olá, ${name.split(" ")[0]}! Sou o assistente virtual da empresa Escola de Tecnologia. Como posso ajudá-lo hoje? Por favor, digite uma das opções abaixo:\n\n1 - Mais Informação - Curso Cypecad\n2 - Curso Cype 3D Metálicas\n3 - Outras perguntas`);
-        }
-
-        if (msg.body === '1' && msg.from.endsWith('@c.us')) {
-            const chat = await msg.getChat();
-            await delay(3000);
-            await chat.sendStateTyping();
-            await delay(3000);
-            await client.sendMessage(msg.from, `Aqui estão as informações sobre o Curso Cypecad:\n\nEnfrentar qualquer cálculo estrutural com Ajuda de Um Engenheiro Calculista Especialista e faturar de R$ 15.000 a R$ 50.000 ou mais com projetos de edifícios, sobrados, casas de acordo com a NBR6118 através do nosso método único VQS (Velocidade, Qualidade, Segurança), indo além de ser Piloto de Software.\n\nCalcular, Detalhar, Projetar e Analisar um projeto completo de concreto armado.\n\nDar um UP na sua Carreira, e obter os melhores empregos, salários e negócios.\n\nFazer Detalhamento de Vigas, Pilares, Lajes, Fundações.\n\nFazer cálculo de Fundações conforme NBR6122.\n\nFazer os Carregamentos conforme normas NBR 6120, barras NBR 7480, ventos NBR 6123, ações e combinações.`);
-            await delay(1000);
-            await client.sendMessage(msg.from, 'Curso Cypecad na Prática - Cálculo Estrutural: 12x R$ 34,90 ou R$ 349,00 à vista. Assim que o sistema confirmar o pagamento, você receberá os dados de acesso ao curso');
-            await delay(1000);
-            await client.sendMessage(msg.from, 'Você pode fazer a compra do curso através deste link: https://sun.eduzz.com/wcs7e6ps');
-            await delay(1000);
-            await client.sendMessage(msg.from, 'Te Vejo lá na Plataforma do Curso Cypecad 😊'); 
-        }
-
-        if (msg.body === '2' && msg.from.endsWith('@c.us')) {
-            const chat = await msg.getChat();
-            await delay(3000);
-            await chat.sendStateTyping();
-            await delay(3000);
-            await client.sendMessage(msg.from, `Aqui estão as informações sobre o Curso Cype 3D Metálicas:\n\nDomine o Cype 3D Estruturas Metálicas em VideoAulas Passo a Passo e Seja um Especialista em Cálculo Estrutural de Galpões Metálicos!\n\n Magno Moreira, Engenheiro de Elite, Revela o Método VQS para fazer Projetos de Estruturas Metálicas com mais Velocidade, Qualidade e Segurança.\n\nO Curso Cype 3D Estruturas Metálicas ensina na prática um projeto real de Galpão Metálico de 640m2 e Mezanino como calcular e dimensionar o projetos de estruturas metálicas de acordo com as normas brasileiras ((NBR 6120), barras (NBR 7480), ventos (NBR 6123), ações e combinações.`);
-            await delay(1000);
-            await client.sendMessage(msg.from, 'Curso Cype 3D Metálicas na Prática - Cálculo Estrutural de Galpões Metálicos: 12x R$ 34,90 ou R$ 349,00 à vista. Assim que o sistema confirmar o pagamento, você receberá os dados de acesso ao curso');
-            await delay(1000);
-            await client.sendMessage(msg.from, 'Você pode fazer a compra do curso através deste link: https://sun.eduzz.com/7czxg5un');
-            await delay(1000);
-            await client.sendMessage(msg.from, 'Te Vejo lá na Plataforma do Curso Cype 3D Metálicas 😊'); 
-        }
-
-        if (msg.body === '3' && msg.from.endsWith('@c.us')) {
-            const chat = await msg.getChat();
-            await delay(3000);
-            await chat.sendStateTyping();
-            await delay(3000);
-            await client.sendMessage(msg.from, 'Se você tiver outras dúvidas ou precisar de mais informações, por favor, digite sua pergunta abaixo e aguarde a resposta');
-            await delay(3000);
-            await client.sendMessage(msg.from, 'Aguarde que um de nossos Atendentes irá responder a sua dúvida, caso queira conhecer todos os nossos cursos acesse o site: https://www.escoladetecnologia.com');
-        }
-    });
-
-    // Inicializa o cliente
-    client.initialize().catch(console.error);
-}
-
-// Inicia o servidor Express
+// Inicializando o app Express
 const app = express();
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-    console.log(`Servidor rodando na porta ${PORT}`);
+const port = process.env.PORT || 3000; // Pegando a porta da variável de ambiente ou 3000 como fallback
+
+// Configuração do WhatsApp Client usando LocalAuth para salvar a sessão localmente
+const client = new Client({
+  authStrategy: new LocalAuth({
+    clientId: 'whatsapp-bot', // Identificador único para a sessão do cliente
+  }),
+  puppeteer: {
+    headless: true, // Modo headless (sem janela do navegador)
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+  }
 });
 
-// Rota para exibir o QR Code
-app.get('/qrcode', async (req, res) => {
-    if (qrCodeUrl) {
-        res.send('<h1>QR Code gerado com sucesso!</h1><img src="' + qrCodeUrl + '" alt="QR Code" />');
-    } else {
-        res.send('<h1>Nenhum QR Code gerado ainda.</h1>');
-    }
+// Eventos do cliente WhatsApp
+client.on('qr', (qr) => {
+  // Gera e exibe o QR code no terminal
+  qrcode.generate(qr, { small: true });
+  console.log('QR Code gerado, escaneie com seu WhatsApp.');
+});
+
+client.on('ready', () => {
+  console.log('WhatsApp conectado.');
+});
+
+// Salvando sessão localmente no arquivo
+client.on('authenticated', (session) => {
+  console.log('Sessão autenticada e salva localmente.');
+});
+
+client.on('auth_failure', () => {
+  console.error('Falha na autenticação. Tente novamente.');
+});
+
+// Inicializando o cliente WhatsApp
+client.initialize();
+
+// Verificando se o WebSocket ainda está ativo a cada 5 minutos
+const checkWebSocketConnection = () => {
+  if (!client.info || !client.info.pushname) {
+    console.log('WebSocket do WhatsApp desconectado. Tentando reconectar...');
+    client.destroy().then(() => {
+      client.initialize();
+    });
+  } else {
+    console.log('WebSocket do WhatsApp ainda ativo.');
+  }
+};
+
+setInterval(checkWebSocketConnection, 5 * 60 * 1000); // Verifica a conexão a cada 5 minutos
+
+// Função para desconectar manualmente o WhatsApp e reiniciar a sessão
+app.get('/disconnect', (req, res) => {
+  client.logout().then(() => {
+    console.log('WhatsApp desconectado. Nova sessão necessária.');
+    client.initialize();
+    res.send('WhatsApp desconectado. Novo QR Code será gerado em breve.');
+  }).catch(err => {
+    console.error('Erro ao desconectar:', err);
+    res.status(500).send('Erro ao desconectar o WhatsApp.');
+  });
+});
+
+// === INÍCIO DA LÓGICA DO SEU CHATBOT ===
+
+// Quando o WhatsApp recebe uma mensagem
+client.on('message', async msg => {
+  console.log(`Mensagem recebida de ${msg.from}: ${msg.body}`);
+
+  // Aqui você pode adicionar a lógica do seu chatbot, como verificar mensagens, responder, etc.
+
+  // Exemplo básico de resposta
+  if (msg.body.toLowerCase() === 'oi') {
+    msg.reply('Olá! Como posso ajudar você hoje?');
+  }
+
+  // Respostas baseadas em palavras-chave
+  if (msg.body.toLowerCase().includes('curso')) {
+    msg.reply('Temos informações sobre diversos cursos, como o Cypecad. Como posso ajudar com isso?');
+  }
+
+  // Resposta padrão para mensagens não reconhecidas
+  else {
+    msg.reply('Desculpe, não entendi sua mensagem. Poderia reformular?');
+  }
+});
+
+// === FIM DA LÓGICA DO SEU CHATBOT ===
+
+// Configurando o servidor para escutar na porta correta
+app.listen(port, () => {
+  console.log(`Servidor rodando na porta ${port}`);
 });
